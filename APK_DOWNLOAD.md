@@ -37,3 +37,12 @@ Indirdikten sonra Android cihazda:
 1. Ayarlar > Guvenlik > Bilinmeyen kaynaklara izin ver
 2. APK'yi acip kur
 3. Uygulama icinde sonuc ekraninda kuzey/guney yorumunu ve enlem sonucunu kontrol et
+
+## Action Nerede?
+
+Workflow dosyasi repo icinde su yoldadir:
+
+`.github/workflows/build-and-release.yml`
+
+GitHub arayuzunde de **Actions > Build and Publish APK** altinda gorunur.
+
