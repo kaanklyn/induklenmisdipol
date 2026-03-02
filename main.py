@@ -20,6 +20,7 @@ from polaris_finder import find_polaris
 from latitude_solver import calculate_latitude_with_error_bounds
 from compass import CompassSensor
 from map_viewer import TurkiyeMap
+from constellation_locator import detect_constellation_and_latitude
 
 
 def print_header():
@@ -115,6 +116,8 @@ def main():
                        help='Pusula azimuth değeri (derece, 0=Kuzey, 90=Doğu)')
     parser.add_argument('--no-compass', action='store_true',
                        help='Pusula sensörü devre dışı bırak')
+    parser.add_argument('--method', choices=['auto', 'constellation', 'polaris'], default='auto',
+                       help='Enlem yöntemi: auto/constellation/polaris')
     
     args = parser.parse_args()
     
@@ -158,30 +161,65 @@ def main():
             print("   Görüntü çok koyu veya gürültülü olabilir.")
             sys.exit(1)
         
-        # Polaris'i bul
-        print("🔍 Polaris aranıyor...")
-        polaris, score, polaris_debug = find_polaris(stars, image_shape)
-        print(f"   ✓ Polaris bulundu\n")
-        
-        # Enlem hesapla
-        print("📐 Enlem hesaplanıyor...")
-        latitude_data = calculate_latitude_with_error_bounds(
-            polaris[1], image_shape[0], vertical_fov
-        )
-        print(f"   ✓ Enlem hesaplanması tamamlandı\n")
-        
-        # Sonuçlar
         debug_info = {'total_stars': len(stars)}
-        polaris_info = {
-            'score': score,
-            'candidates': polaris_debug['total_candidates'],
-            'scores': polaris_debug['scores']
-        }
-        
+        polaris_info = None
+
+        latitude_data = None
+        polaris = None
+
+        # 1) Takımyıldız oran yöntemi (istenirse ya da auto)
+        if args.method in ("auto", "constellation"):
+            print("🧩 Takımyıldız oran eşleşmesi aranıyor (Küçük Ayı / Güney Haçı)...")
+            latitude_data = detect_constellation_and_latitude(
+                stars, image_shape, vertical_fov
+            )
+            if latitude_data is not None:
+                print("   ✓ Takımyıldız eşleşmesi bulundu")
+                print(f"   ✓ Takımyıldız: {latitude_data['constellation']}")
+                print(f"   ✓ Yarımküre: {'Kuzey' if latitude_data['hemisphere']=='north' else 'Güney'}")
+                print(f"   ✓ Güven: %{latitude_data['confidence']*100:.1f}\n")
+                polaris = (
+                    latitude_data['pole_proxy'][0],
+                    latitude_data['pole_proxy'][1],
+                    stars[0][2] if stars else 0,
+                )
+            elif args.method == "constellation":
+                print("❌ HATA: Takımyıldız oran eşleşmesi bulunamadı.")
+                print("   Farklı bir fotoğraf deneyin ya da --method auto/polaris kullanın.")
+                sys.exit(1)
+
+        # 2) Fallback: Polaris yöntemi
+        if latitude_data is None:
+            print("🔍 Polaris aranıyor...")
+            polaris, score, polaris_debug = find_polaris(stars, image_shape)
+            print(f"   ✓ Polaris bulundu\n")
+
+            print("📐 Enlem hesaplanıyor...")
+            latitude_data = calculate_latitude_with_error_bounds(
+                polaris[1], image_shape[0], vertical_fov
+            )
+            print(f"   ✓ Enlem hesaplanması tamamlandı\n")
+
+            polaris_info = {
+                'score': score,
+                'candidates': polaris_debug['total_candidates'],
+                'scores': polaris_debug['scores']
+            }
+
         print_results(polaris, latitude_data, debug_info, image_shape, vertical_fov, compass)
-        
+
+        if latitude_data.get('method') == 'constellation-ratio':
+            print("🧩 TAKIMYILDIZ EŞLEŞME DETAYI")
+            print("-" * 60)
+            print(f"Yöntem:               Yıldızlar arası oran")
+            print(f"Takımyıldız:          {latitude_data['constellation']}")
+            print(f"Yarımküre:            {'Kuzey' if latitude_data['hemisphere']=='north' else 'Güney'}")
+            print(f"Eşleşme skoru:        {latitude_data['score']}")
+            print(f"Güven:                %{latitude_data['confidence']*100:.1f}")
+            print()
+
         # Debug modu
-        if show_debug:
+        if show_debug and polaris_info is not None:
             print_debug_info(debug_info, polaris_info)
         
         # Harita oluştur
