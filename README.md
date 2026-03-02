@@ -238,4 +238,5 @@ Sorun yaşarsanız:
 
 ## APK Download
 - See APK_DOWNLOAD.md for direct release link format.
+- Latest APK notes include automatic constellation ratio decision (UMI/CRUX) for north/south inference.
 
