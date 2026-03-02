@@ -23,14 +23,14 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug
+        run: gradle assembleDebug
 
       - name: Normalize APK filename
-        run: cp app/build/outputs/apk/debug/app-debug.apk kutup-navigasyon-debug.apk
+        run: cp build/outputs/apk/debug/app-debug.apk kutup-navigasyon-debug.apk
 
       - name: Resolve release tag
         id: tag
